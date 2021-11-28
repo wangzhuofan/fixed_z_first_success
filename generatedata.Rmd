@@ -1,0 +1,377 @@
+---
+title: "multiway"
+author: "zhuofan wang"
+date: "2021/11/6"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r}
+library(invgamma)
+library(gtools)
+library(reshape2)
+library(ggplot2)
+```
+## Data Generation
+```{r}
+#set.seed(2000)
+d <- c(30,30,30)
+y <- array(NA,dim = d)
+r <- 1
+m <- 0.1
+rho <- 0.3
+
+gamma <- c(rho/2,1-rho,rho/2)
+#mu <- rnorm(d[2]*d[3],mmu,sigmamu)
+#v1 <- rgamma(d[2]*d[3],av,bv)
+#v2 <- rgamma(d[2]*d[3],av,bv)
+#sigma2 <- rinvgamma(d[2]*d[3],as,bs)
+#sigma2 <- (sigma2<min(v1,v2)/k0)*sigma2
+mu <- 0
+sigma2 <- 1
+v <- 7
+#functino to generate IBP
+generateA = function(n, a, k) {
+  flag = 0
+  
+  while(flag == 0) {
+    # first sample generate features
+    nones = rpois(1, a)
+    while(nones == 0) nones = rpois(1, a)
+    A = matrix(rep(1, nones), nrow = 1)
+    
+    # subsequent samples
+    for(i in 2 : n) {
+      # update existing features
+      A = rbind(A, runif(ncol(A)) < colSums(A) / i)
+      # generate new features
+      nones = rpois(1, a / i)
+      if(nones != 0) {
+        A = cbind(A, matrix(0, nrow(A), nones))
+        A[i, (ncol(A) - nones) : ncol(A)] = 1
+      }
+    }
+    
+    # accepting criteria
+    if(ncol(A) == k) flag = 1
+  }
+  
+  return(A)
+}
+
+
+#generate c1,c2,c3,\lambda1,\lambda2
+#pi <- rbeta(r,m/r,1)
+
+
+
+# generate feature <-> latent feature matrix C (ternary): number of features p = 50
+
+c1o <- generateA(d[1],m,r)
+#c2o <- matrix(rbinom(d[2]*r,1,rho),nrow = d[2])
+c2o = matrix(as.numeric(runif(d[2] * r) < rho), d[2], r)
+#c3o <- matrix(sample(c(-1,0,1),d[3]*r,TRUE,gamma),nrow = d[3])
+c3o = matrix(as.numeric(runif(d[3] * r) < rho), d[3], r)
+c3o[c3o == 1] = 2 * (runif(sum(c3o == 1)) < 0.5) - 1
+l1 <- seq(3.0,4.5,length.out = 4)
+#l2 <- t(seq(2.0,4.5,by = 0.5)%o%rep(1,d[3]))
+l2 <- l1
+
+lambda1 <- matrix(rep(l1,d[3]),nrow = d[3],byrow = TRUE)
+lambda2 <- lambda1
+#generate b1,b2
+#b1 <- rnorm(d[2]*d[3])
+b1 <- log(0.1)
+#b2 <- rnorm(d[2]*d[3])
+b2 <- b1
+b1m <- matrix(b1,nrow = d[2],ncol = d[3])
+b2m <- b1m
+
+#generate z & y
+theta1 <- array(0,dim =d)
+theta2 <- array(0,dim =d)
+for(i in 1:r){
+  theta1 <- theta1+l1[r]*c1o[,r]%o%c2o[,r]%o%(c3o==-1)[,r]
+  theta2 <- theta2+l2[r]*c1o[,r]%o%c2o[,r]%o%(c3o==1)[,r]
+}
+theta1 <- theta1+b1
+theta2 <- theta2+b2
+
+theta1 <- exp(theta1)
+theta2 <- exp(theta2)
+# generate latent ternary indicator z
+U0 = array(runif(d[1]*d[2]*d[3]),dim = d)
+z0 = (U0 > (theta1 + 1) / (theta1 + theta2 + 1)) - (U0 < theta1 / (theta1 + theta2 + 1))
+y[z0==1] <- rnorm(sum(z0==1),mu+10,5)
+y[z0==0] <- rnorm(sum(z0==0),mu,sigma2)
+y[z0==-1] <- rnorm(sum(z0==-1),mu-10,5)
+```
+
+```{r}
+colSums(c1o)
+colSums(c2o)
+colSums(c3o)
+```
+
+```{r}
+update_c1(c1,c2,c3,lambda1,lambda2,d,z,b1m,b2m,r)
+qq <- Multi_way_MCMC(y,1000)
+```
+
+```{r}
+
+{c1track <- list()
+c2track <- list()
+c3track <- list()
+
+  #//initialization
+ al=1;bl=3;av=1;bv=1;am=1;bm=1;sigmal=1;mub=0;sigmab=0.1;arho=1;brho=1;psi_1=1/3;psi0=1/3;psi1=1/3;as=1;bs=1;sigmamu=1;
+ 
+  #//dimension
+d=dim(y);
+  
+ #//class number
+  r=1;
+  #//observation and latent
+  #cube z=randi<cube>(d[0],d[1],d[2],distr_param(-1,1));
+  #//class
+#c3o[c3o == 1] = 2 * (runif(sum(c3o == 1)) < 0.5) - 1
+  c1 = matrix(as.numeric(runif(d[1] * r) < 0.5), d[1], r)
+ c2 =matrix(as.numeric(runif(d[2] * r) < 0.5), d[2], r)
+ 
+ c3 = matrix(as.numeric(runif(d[3] * r) < 0.5), d[3], r)
+ c3[c3 == 1] = 2 * (runif(sum(c3 == 1)) < 0.5) - 1
+ 
+ z <- array(0,dim = d)
+  #mat lambda1(d[2],r,fill::randn);
+  #mat lambda2(d[2],r,fill::randn);
+  #lambda1 = matrix(lambda1[,1],ncol = 1)
+  #lambda2 = matrix(lambda2[,1],ncol = 1)
+lambda1 <- matrix(rgamma(d[3], al, 1/bl), d[3])
+
+lambda2 <- matrix(rgamma(d[3], al, 1/bl), d[3])
+  #//paramters
+  mu <- matrix(0,nrow = d[2],ncol = d[3])
+  sigma2 <- matrix(1,nrow = d[2],ncol = d[3])
+  v1 <- 7*sigma2
+  v2 <- v1
+  #b1 <- matrix(rnorm(d[2]*d[3]),nrow = d[2],ncol = d[3])
+  b1 <- b1m
+  
+  b2 <-b1
+  #mat mu(d[1],d[2],fill::zeros);
+  #mat v1(d[1],d[2],fill::randu);
+  #mat v2(d[1],d[2],fill::randu);
+  #mat sigma2(d[1],d[2],fill::ones);
+  #mat b1(d[1],d[2],fill::randn);
+  #mat b2(d[1],d[2],fill::randn);
+  m=0.1;rho=0.3;
+  
+  #vec gamma(3,fill::randu);
+  gamma <- c(0.15,0.7,0.15)
+  
+  z <- z0
+}
+  #//MCMC update
+  for(it in 1:2000){
+    #li4 <- update_zv(c1,c2,c3,lambda1,lambda2,d,z,b1,b2,v1,v2,av,bv,y,mu,sigma2);
+    #z <- li4[[1]]
+    #v1 <- li4[[2]]
+    #v2 <- li4[[3]]
+    li1 <- update_c1(c1,c2,c3,lambda1,lambda2,d,z,b1,b2)
+    c1 <- li1[[1]]
+    c2 <- li1[[2]]
+    c3 <- li1[[3]]
+    
+    lambda1 <- li1[[4]]
+    
+    lambda2 <- li1[[5]]
+    r <- ncol(c1)
+    
+    c2 <- update_c2(c1,c2,c3,lambda1,lambda2,d,z,b1,b2,rho);
+    li2 <-  update_c3(c1,c2,c3,lambda1,lambda2,d,z,b1,b2,gamma,sigmal,al,bl)
+    c3 <-li2[[1]]
+    lambda1 <- li2[[2]]
+    lambda2 <- li2[[3]]
+    
+    li3 <- new_feature(c1,c2,c3,lambda1,lambda2,d,z,b1,b2,gamma, m,rho,al,bl)
+    c1 <- li3[[1]]
+    c2 <- li3[[2]]
+    c3 <- li3[[3]]
+    lambda1 <- li3[[4]]
+    lambda2 <- li3[[5]]
+    r <- ncol(c1)
+    #m <- rgamma(1,am+r,bm+har(d[1]))
+    #m = randg( distr_param(am+r,bm+har(d[0])));
+    #//update $\rho$
+    #rho <-  rbeta(1,arho+sum(c2),brho+d[2]*r-sum(c2));
+    #//update $\gamma$
+    #probs <- c(psi_1+sum(c3==-1),psi0+sum(c3==0),psi1+sum(c3==1));
+    
+    #gamma <- rdirichlet(1,probs)
+    #//update $b_1,b_2$
+    #li5 <- update_b(d,mub,sigmab,b1,b2,c1,c2,c3,lambda1,lambda2,z);
+    #b1 <- li5[[1]]
+    #b2 <- li5[[2]]
+    
+    #up6 = update_norm(z,y,sigmamu,mu,v1,v2);
+    #sigma2 <- up6[1:d[2],]
+    #mu <- up6[(d[2]+1):(2*d[2]),]
+    #result_multi[[it]] <- rbind(c1,c2,c3)
+    c1track[[it]] <- c1
+    c2track[[it]] <- c2
+    c3track[[it]] <- c3
+  }
+  return matrix_gibbs;
+}
+
+```
+
+```{r}
+kclass <- vector()
+for(i in 1:2000){
+  kclass[i] <- ncol(c1track[[i]])
+}
+plot(kclass)
+```
+
+```{r}
+c1com <- cbind(c1,c1o)
+c2com <- cbind(c2,c2o)
+c3com <- cbind(c3,c3o)
+```
+
+```{r}
+#kclass <- vector()
+c3p <- vector()
+for(i in 1:2000){
+ # kclass[i] <- ncol(c1track[[i]])
+  c3p[i] <- c3track[[i]][1,1]
+}
+#plot(kclass)
+plot(c3p)
+```
+
+
+
+```{r}
+perE = function(A, B) {
+  ## list all permutations
+  permutation = permutations(ncol(A),ncol(A))
+  
+  DHamming = rep(NA, nrow(permutation))
+  for(l in 1 : nrow(permutation)) {
+    NB = as.vector(B[, permutation[l, ]])
+    DHamming[l] = sum(abs(as.vector(A) - NB))
+  }
+  
+  return(permutation[which.min(DHamming), ])
+}
+
+```
+
+```{r}
+c2p <- c2p[,perE(c2o,c2p)]
+c1p <- c1track[[2000]]
+```
+
+```{r}
+pc2o = melt(t(c3o), varnames = c("Factor", "secondorder"), value.name = "Indicator")
+pc2p = melt(t(c3), varnames = c("Factor", "secondorder"), value.name = "Indicator")
+```
+
+```{r}
+ggplot2::ggplot(pc2o, aes(x = secondorder, y = Factor)) + geom_tile(aes(fill = Indicator), color = "black") +
+  scale_fill_gradient(low = "black", high = "green") + theme(legend.position = "none") +
+  scale_x_discrete(expand = c(0, 0)) + scale_y_discrete(expand = c(0, 0)) + labs(x = "", y = "")
+ggplot2::ggplot(pc2p, aes(x = secondorder, y = Factor)) + geom_tile(aes(fill = Indicator), color = "black") +
+  scale_fill_gradient(low = "black", high = "green") + theme(legend.position = "none") +
+  scale_x_discrete(expand = c(0, 0)) + scale_y_discrete(expand = c(0, 0)) + labs(x = "", y = "")
+```
+
+```{r}
+c3o <- datatrue[81:100,-1]
+
+c3o <- cbind(c3o,rep(0,20))
+c3o <- as.matrix(c3o)
+
+c3p <- data[81:100,-(1:17492)]
+c3p <- as.matrix(c3p)
+```
+
+```{r}
+c3p <- c3
+c3p[1,1] <- 0
+c3p <- c3p[,perE(c3o,c3p)]
+
+```
+
+```{r}
+pc3o = melt(t(c3o), varnames = c("Factor", "thirdorder"), value.name = "Indicator")
+pc3p = melt(t(c3p), varnames = c("Factor", "thirdorder"), value.name = "Indicator")
+```
+
+
+```{r}
+ggplot2::ggplot(pc3o, aes(x = thirdorder, y = Factor)) + geom_tile(aes(fill = Indicator), color = "black") +
+  scale_fill_gradientn(colors = c("red", "black", "green"), breaks = c(-1, 0, 1)) + theme(legend.position = "none") +
+  scale_x_discrete(expand = c(0, 0)) + scale_y_discrete(expand = c(0, 0)) + labs(x = "", y = "")
+ggplot2::ggplot(pc3p, aes(x = thirdorder, y = Factor)) + geom_tile(aes(fill = Indicator), color = "black") +
+  scale_fill_gradientn(colors = c("red", "black", "green"), breaks = c(-1, 0, 1)) + theme(legend.position = "none") +
+  scale_x_discrete(expand = c(0, 0)) + scale_y_discrete(expand = c(0, 0)) + labs(x = "", y = "")
+```
+
+
+```{r}
+c22p <- c22p[,perE(c22o,c22p)]
+
+```
+
+```{r}
+pc22o = melt(t(c22o), varnames = c("Factor", "secondorder"), value.name = "Indicator")
+pc22p = melt(t(c22p), varnames = c("Factor", "secondorder"), value.name = "Indicator")
+```
+
+```{r}
+ggplot2::ggplot(pc22o, aes(x = secondorder, y = Factor)) + geom_tile(aes(fill = Indicator), color = "black") +
+  scale_fill_gradient(low = "black", high = "green") + theme(legend.position = "none") +
+  scale_x_discrete(expand = c(0, 0)) + scale_y_discrete(expand = c(0, 0)) + labs(x = "", y = "")
+ggplot2::ggplot(pc22p, aes(x = secondorder, y = Factor)) + geom_tile(aes(fill = Indicator), color = "black") +
+  scale_fill_gradient(low = "black", high = "green") + theme(legend.position = "none") +
+  scale_x_discrete(expand = c(0, 0)) + scale_y_discrete(expand = c(0, 0)) + labs(x = "", y = "")
+```
+
+
+```{r}
+
+x <- seq(0,20,length.out = 100)
+y1 <- dgamma(x,1,1)
+plot(x,y1)
+y2 <- dgamma(x,2,1)
+plot(x,y2)
+y3 <- dgamma(x,3,1)
+plot(x,y3)
+y4 <- dgamma(x,1,rate = 0.5)
+plot(x,y4)
+y5 <- dgamma(x,4,5.5)
+plot(x,y5)
+
+```
+
+```{r}
+#generate z & y
+theta1p <- array(0,dim =d)
+theta2p <- array(0,dim =d)
+for(i in 1:r){
+  theta1p <- theta1p+lambda1[r]*c1[,r]%o%c2[,r]%o%(c3==-1)[,r]
+  theta2p <- theta2p+lambda2[r]*c1[,r]%o%c2[,r]%o%(c3==1)[,r]
+}
+theta1p <- theta1p+log(0.1)
+theta2p <- theta2p+log(0.1)
+
+theta1p <- exp(theta1p)
+theta2p <- exp(theta2p)
+zp <- (U0 > (theta2p + 1) / (theta1p + theta2p + 1)) - (U0 < theta1p / (theta1p + theta2p + 1))
+```
