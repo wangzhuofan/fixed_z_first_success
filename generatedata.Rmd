@@ -19,7 +19,7 @@ library(ggplot2)
 #set.seed(2000)
 d <- c(30,30,30)
 y <- array(NA,dim = d)
-r <- 3
+r <- 2
 m <- 0.1
 rho <- 0.3
 
@@ -75,7 +75,7 @@ c2o = matrix(as.numeric(runif(d[2] * r) < rho), d[2], r)
 #c3o <- matrix(sample(c(-1,0,1),d[3]*r,TRUE,gamma),nrow = d[3])
 c3o = matrix(as.numeric(runif(d[3] * r) < rho), d[3], r)
 c3o[c3o == 1] = 2 * (runif(sum(c3o == 1)) < 0.5) - 1
-l1 <- seq(3.0,4.5,length.out = 4)
+l1 <- seq(3.0,4.5,length.out = 3)
 #l2 <- t(seq(2.0,4.5,by = 0.5)%o%rep(1,d[3]))
 l2 <- l1
 
@@ -255,10 +255,11 @@ c3com <- cbind(c3,c3o)
 
 ```{r}
 #kclass <- vector()
+c3left <- c3track[kclass==2]
 c3p <- vector()
-for(i in 1:2000){
+for(i in 1:length(c3left)){
  # kclass[i] <- ncol(c1track[[i]])
-  c3p[i] <- c3track[[i]][1,1]
+  c3p[i] <- c3left[[i]][30,1]
 }
 #plot(kclass)
 plot(c3p)
