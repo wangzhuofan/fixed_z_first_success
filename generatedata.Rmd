@@ -19,7 +19,7 @@ library(ggplot2)
 #set.seed(2000)
 d <- c(30,30,30)
 y <- array(NA,dim = d)
-r <- 1
+r <- 3
 m <- 0.1
 rho <- 0.3
 
@@ -93,8 +93,8 @@ b2m <- b1m
 theta1 <- array(0,dim =d)
 theta2 <- array(0,dim =d)
 for(i in 1:r){
-  theta1 <- theta1+l1[r]*c1o[,r]%o%c2o[,r]%o%(c3o==-1)[,r]
-  theta2 <- theta2+l2[r]*c1o[,r]%o%c2o[,r]%o%(c3o==1)[,r]
+  theta1 <- theta1+l1[i]*c1o[,i]%o%c2o[,i]%o%(c3o==-1)[,i]
+  theta2 <- theta2+l2[i]*c1o[,i]%o%c2o[,i]%o%(c3o==1)[,i]
 }
 theta1 <- theta1+b1
 theta2 <- theta2+b2
@@ -149,9 +149,9 @@ d=dim(y);
   #mat lambda2(d[2],r,fill::randn);
   #lambda1 = matrix(lambda1[,1],ncol = 1)
   #lambda2 = matrix(lambda2[,1],ncol = 1)
-lambda1 <- matrix(rgamma(d[3], al, 1/bl), d[3])
+lambda1 <- matrix(rgamma(d[3]*r, al, 1/bl), d[3],r)
 
-lambda2 <- matrix(rgamma(d[3], al, 1/bl), d[3])
+lambda2 <- matrix(rgamma(d[3]*r, al, 1/bl), d[3],r)
   #//paramters
   mu <- matrix(0,nrow = d[2],ncol = d[3])
   sigma2 <- matrix(1,nrow = d[2],ncol = d[3])
@@ -180,7 +180,7 @@ lambda2 <- matrix(rgamma(d[3], al, 1/bl), d[3])
     #z <- li4[[1]]
     #v1 <- li4[[2]]
     #v2 <- li4[[3]]
-    li1 <- update_c1(c1,c2,c3,lambda1,lambda2,d,z,b1,b2)
+    li1 <- update_c1(c1,c2,c3,lambda1,lambda2,d,z,b1,b2,gamma, m,rho,al,bl)
     c1 <- li1[[1]]
     c2 <- li1[[2]]
     c3 <- li1[[3]]
@@ -196,14 +196,14 @@ lambda2 <- matrix(rgamma(d[3], al, 1/bl), d[3])
     lambda1 <- li2[[2]]
     lambda2 <- li2[[3]]
     
-    li3 <- new_feature(c1,c2,c3,lambda1,lambda2,d,z,b1,b2,gamma, m,rho,al,bl)
-    c1 <- li3[[1]]
-    c2 <- li3[[2]]
-    c3 <- li3[[3]]
-    lambda1 <- li3[[4]]
-    lambda2 <- li3[[5]]
-    r <- ncol(c1)
-    #m <- rgamma(1,am+r,bm+har(d[1]))
+    #li3 <- new_feature(c1,c2,c3,lambda1,lambda2,d,z,b1,b2,gamma, m,rho,al,bl)
+    #c1 <- li3[[1]]
+    #c2 <- li3[[2]]
+    #c3 <- li3[[3]]
+    #lambda1 <- li3[[4]]
+    #lambda2 <- li3[[5]]
+    #r <- ncol(c1)
+    m <- rgamma(1,am+r,bm+har(d[1]))
     #m = randg( distr_param(am+r,bm+har(d[0])));
     #//update $\rho$
     #rho <-  rbeta(1,arho+sum(c2),brho+d[2]*r-sum(c2));
@@ -231,10 +231,20 @@ lambda2 <- matrix(rgamma(d[3], al, 1/bl), d[3])
 
 ```{r}
 kclass <- vector()
-for(i in 1:2000){
+for(i in 1:length(c1track)){
   kclass[i] <- ncol(c1track[[i]])
 }
 plot(kclass)
+table(kclass)
+```
+
+```{r}
+kclass <- vector()
+for(i in (length(c1track)/2):length(c1track)){
+  kclass[i] <- ncol(c1track[[i]])
+}
+plot(kclass)
+table(kclass)
 ```
 
 ```{r}
@@ -273,13 +283,39 @@ perE = function(A, B) {
 ```
 
 ```{r}
+min_ham = function(A, B) {
+  ## list all permutations
+  permutation = permutations(ncol(A),ncol(A))
+  
+  DHamming = rep(NA, nrow(permutation))
+  for(l in 1 : nrow(permutation)) {
+    NB = as.vector(B[, permutation[l, ]])
+    DHamming[l] = sum(abs(as.vector(A) - NB))
+  }
+  
+  return(min(DHamming))
+}
+
+```
+
+```{r}
+c1left <- c1left
+num <- length(c1left)
+dis <- matrix(0,nrow = num,ncol = num)
+for(i in 1:num)
+  for(j in 1:num){
+    dis[i,j] <- min_ham(c1left[[i]],c1left[[j]])
+  }
+```
+
+```{r}
 c2p <- c2p[,perE(c2o,c2p)]
 c1p <- c1track[[2000]]
 ```
 
 ```{r}
-pc2o = melt(t(c3o), varnames = c("Factor", "secondorder"), value.name = "Indicator")
-pc2p = melt(t(c3), varnames = c("Factor", "secondorder"), value.name = "Indicator")
+pc2o = melt(t(c2o), varnames = c("Factor", "secondorder"), value.name = "Indicator")
+pc2p = melt(t(c2), varnames = c("Factor", "secondorder"), value.name = "Indicator")
 ```
 
 ```{r}
@@ -310,7 +346,7 @@ c3p <- c3p[,perE(c3o,c3p)]
 
 ```{r}
 pc3o = melt(t(c3o), varnames = c("Factor", "thirdorder"), value.name = "Indicator")
-pc3p = melt(t(c3p), varnames = c("Factor", "thirdorder"), value.name = "Indicator")
+pc3p = melt(t(c3), varnames = c("Factor", "thirdorder"), value.name = "Indicator")
 ```
 
 
@@ -355,7 +391,7 @@ y3 <- dgamma(x,3,1)
 plot(x,y3)
 y4 <- dgamma(x,1,rate = 0.5)
 plot(x,y4)
-y5 <- dgamma(x,4,5.5)
+y5 <- dgamma(x,3,5)
 plot(x,y5)
 
 ```

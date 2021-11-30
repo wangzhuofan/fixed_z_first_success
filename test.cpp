@@ -133,11 +133,11 @@ double log_pz_b2(int i1,int i2,double b,vec d,mat c1,mat c2,mat c3,mat l1,mat l2
 
 //function to update c1
 //[[Rcpp::export]]
-List update_c1(mat c1,mat c2,mat c3,mat lambda1,mat lambda2,vec d,cube z,mat b1,mat b2)
+List update_c1(mat c1,mat c2,mat c3,mat lambda1,mat lambda2,vec d,cube z,mat b1,mat b2,vec gamma,double m,double rho,double al,double bl)
 {
   List re(5);
   for(int i=0;i<d[0];i++){
-    int r = c1.n_cols;
+    int r = c1.n_cols,r_star = R::rpois(m/d[0]);
     mat m1 = KR(lambda1%(c3==-1),c2);
     mat m2 = KR(lambda2%(c3==1),c2);
     vec index = zeros<vec>(r);
@@ -153,11 +153,30 @@ List update_c1(mat c1,mat c2,mat c3,mat lambda1,mat lambda2,vec d,cube z,mat b1,
         a(j) =0;
         double log_p0 = log(d[0]-x)+log_pz(a,m1,m2,zvec,vectorise(b1.as_col()),vectorise(b2.as_col()));
         double p0 = 1/(exp(log_p1-log_p0)+1);
-        c1(i,j) = (randu()>p0);
+        c1(i,j) = (randu()>p0);a(j) = c1(i,j);
       }
     }
     if((sum(index) != 0) & (sum(index) != r)) {
       c1 = c1.cols(find(index));  c2 = c2.cols(find(index)); c3 = c3.cols(find(index)); lambda1 = lambda1.cols(find(index));lambda2 = lambda2.cols(find(index));
+      a = a(find(index));  m1 = m1.cols(find(index));  m2 = m2.cols(find(index));
+    }
+    
+    if(r_star >0){
+      //propose new feature
+      
+      mat c1t(d[0],r_star,fill::zeros),c2t(d[1],r_star,fill::randu),c3t(d[2],r_star,fill::randu),lambda1t=randg<mat>(d[2],r_star, distr_param(al,bl)),lambda2t=randg<mat>(d[2],r_star, distr_param(al,bl));
+      c2t = ones(size(c2t))%(c2t<rho);c3t = ones(size(c3t))%(c3t>(1-gamma[2]))-ones(size(c3t))%(c3t<gamma[0]);
+      c1t.row(i) = ones<rowvec>(r_star);
+      mat c1_new=join_rows(c1,c1t),c2_new=join_rows(c2,c2t),c3_new=join_rows(c3,c3t),l1_new=join_rows(lambda1,lambda1t),l2_new=join_rows(lambda2,lambda2t);
+      mat m1_new = KR(l1_new%(c3_new==-1),c2_new),m2_new = KR(l2_new%(c3_new==1),c2_new);
+      vec a_new = vectorise(c1_new.row(i));
+      
+      double log_p = log_pz(a_new,m1_new,m2_new,zvec,vectorise(b1),vectorise(b2))-log_pz(a,m1,m2,zvec,vectorise(b1),vectorise(b2));
+      double p = exp(log_p);
+      double u = randu();
+      if(u<p){
+        c1 = c1_new;c2 = c2_new;c3=c3_new;lambda1 = l1_new;lambda2 = l2_new;
+      }
     }
   }
   re[0]=c1;re[1]=c2;re[2]=c3;re[3]=lambda1;re[4]=lambda2;
@@ -183,7 +202,7 @@ mat update_c2(mat c1,mat c2,mat c3,mat lambda1,mat lambda2,vec d,cube z,mat b1,m
       a(j) =0;
       double log_p0 = log(1-rho)+log_pz(a,m1,m2,zvec,rep_each(b1r,int(d[0])),rep_each(b2r,int(d[0])));
       double p0 = 1/(exp(log_p1-log_p0)+1);
-      c2(i,j) = (randu()>p0);
+      c2(i,j) = (randu()>p0);a(j) = c2(i,j);
     }
   }
   return c2;
@@ -261,43 +280,40 @@ List update_c3(mat c1,mat c2,mat c3,mat lambda1,mat lambda2,vec d,cube z,mat b1,
 }
 
 //function to update class r and new feature
-//[[Rcpp::export]]
-List new_feature(mat c1,mat c2,mat c3,mat lambda1,mat lambda2,vec d,cube z,mat b1,mat b2,vec gamma,double m,double rho,double al,double bl)
-{
-  int r = c1.n_cols;
-  List re(5);
-  int r_star = R::rpois(m/d[0]);
-  if(r_star >0){
+
+//List new_feature(mat c1,mat c2,mat c3,mat lambda1,mat lambda2,vec d,cube z,mat b1,mat b2,vec gamma,double m,double rho,double al,double bl)
+//{
+  //int r = c1.n_cols;
+  //List re(5);
+  //int r_star = R::rpois(m/d[0]);
+  //if(r_star >0){
     //propose new feature
     
-    mat c1t(d[0],r_star,fill::ones),c2t(d[1],r_star,fill::randu),c3t(d[2],r_star,fill::randu),lambda1t=randg<mat>(d[2],r_star, distr_param(al,bl)),lambda2t=randg<mat>(d[2],r_star, distr_param(al,bl));
-    c2t = ones(size(c2t))%(c2t<rho);
-    c3t = ones(size(c3t))%(c3t>(1-gamma[2]))-ones(size(c3t))%(c3t<gamma[0]);
+    //mat c1t(d[0],r_star,fill::ones),c2t(d[1],r_star,fill::randu),c3t(d[2],r_star,fill::randu),lambda1t=randg<mat>(d[2],r_star, distr_param(al,bl)),lambda2t=randg<mat>(d[2],r_star, distr_param(al,bl));
+    //c2t = ones(size(c2t))%(c2t<rho);c3t = ones(size(c3t))%(c3t>(1-gamma[2]))-ones(size(c3t))%(c3t<gamma[0]);
+    //mat c1_new=join_rows(c1,c1t),c2_new=join_rows(c2,c2t),c3_new=join_rows(c3,c3t),l1_new=join_rows(lambda1,lambda1t),l2_new=join_rows(lambda2,lambda2t);
+    //mat m1_old = KR(lambda1%(c3==-1),c2),m2_old = KR(lambda2%(c3==1),c2),m1_new = KR(l1_new%(c3_new==-1),c2_new),m2_new = KR(l2_new%(c3_new==1),c2_new);
     
-    mat c1_new=join_rows(c1,c1t),c2_new=join_rows(c2,c2t),c3_new=join_rows(c3,c3t),l1_new=join_rows(lambda1,lambda1t),l2_new=join_rows(lambda2,lambda2t);
-    
-    mat m1_old = KR(lambda1%(c3==-1),c2),m2_old = KR(lambda2%(c3==1),c2),m1_new = KR(l1_new%(c3_new==-1),c2_new),m2_new = KR(l2_new%(c3_new==1),c2_new);
-    
-    double flag =0;
-    for(int i=0;i<d[0];i++){
-      vec a_old = vectorise(c1.row(i));
-      vec a_new = vectorise(c1_new.row(i));
-      vec zvec = vectorise(z.row(i));
-      double log_p = log_pz(a_new,m1_new,m2_new,zvec,vectorise(b1),vectorise(b2))-log_pz(a_old,m1_old,m2_old,zvec,vectorise(b1),vectorise(b2));
-      double p = exp(log_p);
-      double u = randu();
-      if(u>p){
-        flag +=1;
-        c1_new.submat(i,r,i,r_star+r-1) = zeros<mat>(1,r_star);
-      }
-    }
-    if(flag<d[0]){
-      c1 = c1_new;c2 = c2_new;c3 = c3_new;lambda1 = l1_new;lambda2 = l2_new;
-    }
-  }
-  re[0]=c1;re[1]=c2;re[2]=c3;re[3]=lambda1;re[4]=lambda2;
-  return re;
-}
+    //double flag =0;
+    //for(int i=0;i<d[0];i++){
+      //vec a_old = vectorise(c1.row(i));
+      //vec a_new = vectorise(c1_new.row(i));
+      //vec zvec = vectorise(z.row(i));
+      //double log_p = log_pz(a_new,m1_new,m2_new,zvec,vectorise(b1),vectorise(b2))-log_pz(a_old,m1_old,m2_old,zvec,vectorise(b1),vectorise(b2));
+      //double p = exp(log_p);
+      //double u = randu();
+      //if(u>p){
+        //flag +=1;
+        //c1_new.submat(i,r,i,r_star+r-1) = zeros<mat>(1,r_star);
+      //}
+    //}
+    //if(flag<d[0]){
+      //c1 = c1_new;c2 = c2_new;c3 = c3_new;lambda1 = l1_new;lambda2 = l2_new;
+    //}
+  //}
+  //re[0]=c1;re[1]=c2;re[2]=c3;re[3]=lambda1;re[4]=lambda2;
+  //return re;
+//}
 
 //function to update z and v
 //[[Rcpp::export]]
