@@ -17,9 +17,9 @@ library(ggplot2)
 ## Data Generation
 ```{r}
 #set.seed(2000)
-d <- c(30,30,30)
+d <- c(10,10,10)
 y <- array(NA,dim = d)
-r <- 2
+r <- 1
 m <- 0.1
 rho <- 0.3
 
@@ -122,15 +122,16 @@ qq <- Multi_way_MCMC(y,1000)
 
 ```{r}
 
-{c1track <- list()
-c2track <- list()
-c3track <- list()
-
+{
+  c1track <- list()
+  c2track <- list()
+  c3track <- list()
+  ztrack <- list()
   #//initialization
- al=1;bl=3;av=1;bv=1;am=1;bm=1;sigmal=1;mub=0;sigmab=0.1;arho=1;brho=1;psi_1=1/3;psi0=1/3;psi1=1/3;as=1;bs=1;sigmamu=1;
+  al=1;bl=3;av=1;bv=1;am=1;bm=1;sigmal=1;mub=0;sigmab=0.1;arho=1;brho=1;psi_1=1/3;psi0=1/3;psi1=1/3;as=1;bs=1;sigmamu=1;
  
   #//dimension
-d=dim(y);
+  d=dim(y);
   
  #//class number
   r=1;
@@ -139,19 +140,22 @@ d=dim(y);
   #//class
 #c3o[c3o == 1] = 2 * (runif(sum(c3o == 1)) < 0.5) - 1
   c1 = matrix(as.numeric(runif(d[1] * r) < 0.5), d[1], r)
- c2 =matrix(as.numeric(runif(d[2] * r) < 0.5), d[2], r)
+  c2 =matrix(as.numeric(runif(d[2] * r) < 0.5), d[2], r)
  
- c3 = matrix(as.numeric(runif(d[3] * r) < 0.5), d[3], r)
- c3[c3 == 1] = 2 * (runif(sum(c3 == 1)) < 0.5) - 1
- 
- z <- array(0,dim = d)
+  c3 = matrix(as.numeric(runif(d[3] * r) < 0.5), d[3], r)
+ #c3[c3 == 1] = 2 * (runif(sum(c3 == 1)) < 0.5) - 1
+  #c1 <- c1o
+  #c2 <- c2o
+  #c3 <- c3o
+  #z <- array(0,dim = d)
   #mat lambda1(d[2],r,fill::randn);
   #mat lambda2(d[2],r,fill::randn);
   #lambda1 = matrix(lambda1[,1],ncol = 1)
   #lambda2 = matrix(lambda2[,1],ncol = 1)
-lambda1 <- matrix(rgamma(d[3]*r, al, 1/bl), d[3],r)
-
-lambda2 <- matrix(rgamma(d[3]*r, al, 1/bl), d[3],r)
+  #lambda1 <- matrix(rgamma(d[3]*r, al, 1/bl), d[3],r)
+  #lambda2 <- matrix(rgamma(d[3]*r, al, 1/bl), d[3],r)
+  lambda1 <- matrix(rep(l1[1],d[3]),nrow = d[3],byrow = TRUE)
+  lambda2 <- lambda1
   #//paramters
   mu <- matrix(0,nrow = d[2],ncol = d[3])
   sigma2 <- matrix(1,nrow = d[2],ncol = d[3])
@@ -171,15 +175,16 @@ lambda2 <- matrix(rgamma(d[3]*r, al, 1/bl), d[3],r)
   
   #vec gamma(3,fill::randu);
   gamma <- c(0.15,0.7,0.15)
-  
-  z <- z0
+  #z <- z0
+  z <- array(0,dim = d)
 }
   #//MCMC update
-  for(it in 1:2000){
-    #li4 <- update_zv(c1,c2,c3,lambda1,lambda2,d,z,b1,b2,v1,v2,av,bv,y,mu,sigma2);
-    #z <- li4[[1]]
-    #v1 <- li4[[2]]
-    #v2 <- li4[[3]]
+  for(it in 2001:4000){
+    ztrack[[it]] <- z
+    li4 <- update_zv(c1,c2,c3,lambda1,lambda2,d,z,b1,b2,v1,v2,av,bv,y,mu,sigma2);
+    z <- li4[[1]]
+    v1 <- li4[[2]]
+    v2 <- li4[[3]]
     li1 <- update_c1(c1,c2,c3,lambda1,lambda2,d,z,b1,b2,gamma, m,rho,al,bl)
     c1 <- li1[[1]]
     c2 <- li1[[2]]
@@ -196,20 +201,12 @@ lambda2 <- matrix(rgamma(d[3]*r, al, 1/bl), d[3],r)
     lambda1 <- li2[[2]]
     lambda2 <- li2[[3]]
     
-    #li3 <- new_feature(c1,c2,c3,lambda1,lambda2,d,z,b1,b2,gamma, m,rho,al,bl)
-    #c1 <- li3[[1]]
-    #c2 <- li3[[2]]
-    #c3 <- li3[[3]]
-    #lambda1 <- li3[[4]]
-    #lambda2 <- li3[[5]]
-    #r <- ncol(c1)
-    m <- rgamma(1,am+r,bm+har(d[1]))
+    #m <- rgamma(1,am+r,bm+har(d[1]))
     #m = randg( distr_param(am+r,bm+har(d[0])));
     #//update $\rho$
-    #rho <-  rbeta(1,arho+sum(c2),brho+d[2]*r-sum(c2));
+    #rho <-  rbeta(1,arho+sum(c2),brho+d[2]*r-sum(c2))
     #//update $\gamma$
-    #probs <- c(psi_1+sum(c3==-1),psi0+sum(c3==0),psi1+sum(c3==1));
-    
+    #probs <- c(psi_1+sum(c3==-1),psi0+sum(c3==0),psi1+sum(c3==1))
     #gamma <- rdirichlet(1,probs)
     #//update $b_1,b_2$
     #li5 <- update_b(d,mub,sigmab,b1,b2,c1,c2,c3,lambda1,lambda2,z);
@@ -228,6 +225,16 @@ lambda2 <- matrix(rgamma(d[3]*r, al, 1/bl), d[3],r)
 }
 
 ```
+test identifiability
+```{r}
+wc31 <- lambda1*(c3==-1)
+wc32 <- lambda2*(c3==1)
+t1p <- c1[,1]%o%c2[,1]%o%wc31[,1]+log(0.1)
+t2p <- c1[,1]%o%c2[,1]%o%wc32[,1]+log(0.1)
+t1p <- exp(t1p)
+t2p <- exp(t2p)
+zp <- (U0 > (t1p + 1) / (t1p + t2p + 1)) - (U0 < t1p / (t1p + t2p + 1))
+```
 
 ```{r}
 kclass <- vector()
@@ -236,6 +243,18 @@ for(i in 1:length(c1track)){
 }
 plot(kclass)
 table(kclass)
+```
+
+```{r}
+zt <- matrix(0,nrow = length(z),ncol = 4000)
+for (t in 1:4000) {
+  zt[,t] <- as.vector(ztrack[[t]])
+}
+zv <- apply(zt, 1, function(x){as.numeric(names(table(x))[table(x) == max(table(x))])})
+```
+```{r}
+for(i in 1:length(z))
+  plot(zt[i,])
 ```
 
 ```{r}
@@ -259,7 +278,7 @@ c3left <- c3track[kclass==2]
 c3p <- vector()
 for(i in 1:length(c3left)){
  # kclass[i] <- ncol(c1track[[i]])
-  c3p[i] <- c3left[[i]][30,1]
+  c3p[i] <- c3left[[i]][6,1]
 }
 #plot(kclass)
 plot(c3p)

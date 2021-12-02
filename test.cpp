@@ -71,11 +71,11 @@ double log_pz3(vec a1,vec a2,mat b,vec c,vec d1,vec d2){
 
 
 //functions to calculate px;
-//[[Rcpp::export]]
-double log_px(double x,double z,double v1,double v2,double mu,double sigma2){
-  double result=-log(v1)*(z==-1)+R::dnorm(x,mu,sigma2,true)*(z==0)-log(v2)*(z==1);
-  return result;
-}
+
+//double log_px(double x,double z,double v1,double v2,double mu,double sigma2){
+  //double result=-log(v1)*(z==-1)*(x<mu)+R::dnorm(x,mu,sigma2,true)*(z==0)-log(v2)*(z==1)*(x>mu);
+  //return result;
+//}
 
 
 //functions to calculate pz_unit;
@@ -321,31 +321,37 @@ List update_zv(mat c1,mat c2,mat c3,mat lambda1,mat lambda2,vec d,cube z,mat b1,
 {
   int r = c1.n_cols;double k0=5;
   List re(3);
-  for(int i2=0;i2<d[2];i2++)
+  for(int i2=0;i2<d[2];i2++){
     for(int i1=0;i1<d[1];i1++){
       vec ztemp(d[0]);
-      double temp1 = randg( distr_param(av,bv) );
-      double temp2 = randg( distr_param(av,bv) );
-      if(temp1 < sqrt(sigma2(i1,i2))*k0) temp1=sqrt(sigma2(i1,i2))*k0;
-      if(temp2 < sqrt(sigma2(i1,i2))*k0) temp2=sqrt(sigma2(i1,i2))*k0;
-      double log_p=0;
+      //double temp1 = randg( distr_param(av,bv) );
+      //double temp2 = randg( distr_param(av,bv) );
+      //if(temp1 < sqrt(sigma2(i1,i2))*k0) temp1=sqrt(sigma2(i1,i2))*k0;
+      //if(temp2 < sqrt(sigma2(i1,i2))*k0) temp2=sqrt(sigma2(i1,i2))*k0;
+      //double log_p=0;
       for(int i0=0;i0<d[0];i0++){
-        double log_p_1 = log_pz_unit(i0,i1,i2,-1,c1,c2,c3,lambda1,lambda2,b1,b2)+log_px(y(i0,i1,i2),-1,v1(i1,i2),v2(i1,i2),mu(i1,i2),sigma2(i1,i2));
-        double log_p0 = log_pz_unit(i0,i1,i2,0,c1,c2,c3,lambda1,lambda2,b1,b2)+log_px(y(i0,i1,i2),0,v1(i1,i2),v2(i1,i2),mu(i1,i2),sigma2(i1,i2));
-        double log_p1 = log_pz_unit(i0,i1,i2,1,c1,c2,c3,lambda1,lambda2,b1,b2)+log_px(y(i0,i1,i2),1,v1(i1,i2),v2(i1,i2),mu(i1,i2),sigma2(i1,i2));
-        double p_1 = exp(log_p_1), p0 = exp(log_p0),p1 = exp(log_p1);
-        double u = randu();
-        ztemp(i0) = (u>(1-p1/(p_1+p0+p1)))-(u<(p_1/(p_1+p0+p1)));
-        log_p += log_px(y(i0,i1,i2),z(i0,i1,i2),v1(i1,i2),v2(i1,i2),mu(i1,i2),sigma2(i1,i2))-log_px(y(i0,i1,i2),z(i0,i1,i2),temp1,temp2,mu(i1,i2),sigma2(i1,i2));
+        //double log_p_1 = log_pz_unit(i0,i1,i2,-1,c1,c2,c3,lambda1,lambda2,b1,b2)+log_px(y(i0,i1,i2),-1,v1(i1,i2),v2(i1,i2),mu(i1,i2),sigma2(i1,i2));
+        //double log_p0 = log_pz_unit(i0,i1,i2,0,c1,c2,c3,lambda1,lambda2,b1,b2)+log_px(y(i0,i1,i2),0,v1(i1,i2),v2(i1,i2),mu(i1,i2),sigma2(i1,i2));
+        //double log_p1 = log_pz_unit(i0,i1,i2,1,c1,c2,c3,lambda1,lambda2,b1,b2)+log_px(y(i0,i1,i2),1,v1(i1,i2),v2(i1,i2),mu(i1,i2),sigma2(i1,i2));
+        //double p_1 = exp(log_p_1), p0 = exp(log_p0),p1 = exp(log_p1);
+        //double u = randu();
+        //ztemp(i0) = (u>(1-p1/(p_1+p0+p1)))-(u<(p_1/(p_1+p0+p1)));
+        double log_p0 = log_pz_unit(i0,i1,i2,0,c1,c2,c3,lambda1,lambda2,b1,b2)+R::dnorm(y(i0,i1,i2),mu(i1,i2),sigma2(i1,i2),true);
+        double log_p1 = log_pz_unit(i0,i1,i2,1,c1,c2,c3,lambda1,lambda2,b1,b2)-log(v2(i1,i2));
+        double log_p_1 = log_pz_unit(i0,i1,i2,-1,c1,c2,c3,lambda1,lambda2,b1,b2)-log(v1(i1,i2));
+        if(y(i0,i1,i2)>=mu(i1,i2))  ztemp(i0) = ((log_p1 - log_p0) > log(1 / randu() - 1));
+        if(y(i0,i1,i2)<mu(i1,i2))  ztemp(i0) = -((log_p_1 - log_p0) > log(1 / randu() - 1));
+        //log_p += log_px(y(i0,i1,i2),ztemp(i0),temp1,temp2,mu(i1,i2),sigma2(i1,i2))-log_px(y(i0,i1,i2),z(i0,i1,i2),v1(i1,i2),v2(i1,i2),mu(i1,i2),sigma2(i1,i2));
       }
-      double p = exp(-log_p);
-      double u = randu();
-      if(u<p){
-        v1(i1,i2) = temp1;v2(i1,i2) = temp2;z.subcube(0,i1,i2,d[0]-1,i1,i2) = ztemp;
-      }
+      z.subcube(0,i1,i2,d[0]-1,i1,i2) = ztemp;
+      //double p = exp(log_p),u = randu();
+      //if(u<p){
+        //v1(i1,i2) = temp1;v2(i1,i2) = temp2;z.subcube(0,i1,i2,d[0]-1,i1,i2) = ztemp;
+      //}
     }
-    re[0]=z;re[1]=v1;re[2]=v2;
-    return re;
+  }
+  re[0]=z;re[1]=v1;re[2]=v2;
+  return re;
 }
 
 //function to update mu and sigma2
