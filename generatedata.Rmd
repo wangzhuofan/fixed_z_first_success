@@ -17,9 +17,9 @@ library(ggplot2)
 ## Data Generation
 ```{r}
 #set.seed(2000)
-d <- c(10,10,10)
+d <- c(20,20,20)
 y <- array(NA,dim = d)
-r <- 1
+r <- 3
 m <- 0.1
 rho <- 0.3
 
@@ -75,7 +75,7 @@ c2o = matrix(as.numeric(runif(d[2] * r) < rho), d[2], r)
 #c3o <- matrix(sample(c(-1,0,1),d[3]*r,TRUE,gamma),nrow = d[3])
 c3o = matrix(as.numeric(runif(d[3] * r) < rho), d[3], r)
 c3o[c3o == 1] = 2 * (runif(sum(c3o == 1)) < 0.5) - 1
-l1 <- seq(3.0,4.5,length.out = 3)
+l1 <- seq(3.0,3+0.5*r,length.out = r)
 #l2 <- t(seq(2.0,4.5,by = 0.5)%o%rep(1,d[3]))
 l2 <- l1
 
@@ -171,15 +171,15 @@ qq <- Multi_way_MCMC(y,1000)
   #mat sigma2(d[1],d[2],fill::ones);
   #mat b1(d[1],d[2],fill::randn);
   #mat b2(d[1],d[2],fill::randn);
-  m=0.1;rho=0.3;
+  m=0.1;rho=0.15;
   
   #vec gamma(3,fill::randu);
-  gamma <- c(0.15,0.7,0.15)
+  gamma <- c(rho/2,1-rho,rho/2)
   #z <- z0
   z <- array(0,dim = d)
 }
   #//MCMC update
-  for(it in 2001:4000){
+  for(it in 1:4000){
     ztrack[[it]] <- z
     li4 <- update_zv(c1,c2,c3,lambda1,lambda2,d,z,b1,b2,v1,v2,av,bv,y,mu,sigma2);
     z <- li4[[1]]
@@ -233,7 +233,8 @@ t1p <- c1[,1]%o%c2[,1]%o%wc31[,1]+log(0.1)
 t2p <- c1[,1]%o%c2[,1]%o%wc32[,1]+log(0.1)
 t1p <- exp(t1p)
 t2p <- exp(t2p)
-zp <- (U0 > (t1p + 1) / (t1p + t2p + 1)) - (U0 < t1p / (t1p + t2p + 1))
+mean((theta1-t1p)^2)
+#zp <- (U0 > (t1p + 1) / (t1p + t2p + 1)) - (U0 < t1p / (t1p + t2p + 1))
 ```
 
 ```{r}
@@ -247,6 +248,7 @@ table(kclass)
 
 ```{r}
 zt <- matrix(0,nrow = length(z),ncol = 4000)
+
 for (t in 1:4000) {
   zt[,t] <- as.vector(ztrack[[t]])
 }
@@ -334,8 +336,8 @@ c1p <- c1track[[2000]]
 ```
 
 ```{r}
-pc2o = melt(t(c2o), varnames = c("Factor", "secondorder"), value.name = "Indicator")
-pc2p = melt(t(c2), varnames = c("Factor", "secondorder"), value.name = "Indicator")
+pc2o = melt(t(c1o), varnames = c("Factor", "secondorder"), value.name = "Indicator")
+pc2p = melt(t(c1), varnames = c("Factor", "secondorder"), value.name = "Indicator")
 ```
 
 ```{r}

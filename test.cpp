@@ -146,7 +146,7 @@ List update_c1(mat c1,mat c2,mat c3,mat lambda1,mat lambda2,vec d,cube z,mat b1,
     for(int j=0;j<r;j++){
       
       double x = sum(c1.col(j))-c1(i,j);
-      if(x>0){
+      if((x>0)&&x<(d[0]-1)){
         index(j) = 1;
         a(j) =1;
         double log_p1 = log(x)+log_pz(a,m1,m2,zvec,vectorise(b1.as_col()),vectorise(b2.as_col()));
@@ -319,11 +319,12 @@ List update_c3(mat c1,mat c2,mat c3,mat lambda1,mat lambda2,vec d,cube z,mat b1,
 //[[Rcpp::export]]
 List update_zv(mat c1,mat c2,mat c3,mat lambda1,mat lambda2,vec d,cube z,mat b1,mat b2,mat v1,mat v2,double av,double bv,cube y,mat mu,mat sigma2)
 {
-  int r = c1.n_cols;double k0=5;
+  //int r = c1.n_cols;
+  //double k0=5;
   List re(3);
   for(int i2=0;i2<d[2];i2++){
     for(int i1=0;i1<d[1];i1++){
-      vec ztemp(d[0]);
+      //vec ztemp(d[0]);
       //double temp1 = randg( distr_param(av,bv) );
       //double temp2 = randg( distr_param(av,bv) );
       //if(temp1 < sqrt(sigma2(i1,i2))*k0) temp1=sqrt(sigma2(i1,i2))*k0;
@@ -339,11 +340,11 @@ List update_zv(mat c1,mat c2,mat c3,mat lambda1,mat lambda2,vec d,cube z,mat b1,
         double log_p0 = log_pz_unit(i0,i1,i2,0,c1,c2,c3,lambda1,lambda2,b1,b2)+R::dnorm(y(i0,i1,i2),mu(i1,i2),sigma2(i1,i2),true);
         double log_p1 = log_pz_unit(i0,i1,i2,1,c1,c2,c3,lambda1,lambda2,b1,b2)-log(v2(i1,i2));
         double log_p_1 = log_pz_unit(i0,i1,i2,-1,c1,c2,c3,lambda1,lambda2,b1,b2)-log(v1(i1,i2));
-        if(y(i0,i1,i2)>=mu(i1,i2))  ztemp(i0) = ((log_p1 - log_p0) > log(1 / randu() - 1));
-        if(y(i0,i1,i2)<mu(i1,i2))  ztemp(i0) = -((log_p_1 - log_p0) > log(1 / randu() - 1));
+        if(y(i0,i1,i2)>=mu(i1,i2))  z(i0,i1,i2) = ((log_p1 - log_p0) > log(1 / randu() - 1));
+        if(y(i0,i1,i2)<mu(i1,i2))  z(i0,i1,i2) = -((log_p_1 - log_p0) > log(1 / randu() - 1));
         //log_p += log_px(y(i0,i1,i2),ztemp(i0),temp1,temp2,mu(i1,i2),sigma2(i1,i2))-log_px(y(i0,i1,i2),z(i0,i1,i2),v1(i1,i2),v2(i1,i2),mu(i1,i2),sigma2(i1,i2));
       }
-      z.subcube(0,i1,i2,d[0]-1,i1,i2) = ztemp;
+      //z.subcube(0,i1,i2,d[0]-1,i1,i2) = ztemp;
       //double p = exp(log_p),u = randu();
       //if(u<p){
         //v1(i1,i2) = temp1;v2(i1,i2) = temp2;z.subcube(0,i1,i2,d[0]-1,i1,i2) = ztemp;
@@ -375,9 +376,9 @@ mat update_norm(cube z,cube y,double as,double bs,double sigmamu,mat mu,double k
 //[[Rcpp::export]]
 List update_b(vec d,double mub,double sigmab,mat &b1,mat &b2,mat c1,mat c2,mat c3,mat l1,mat l2,cube z)
 {
-  int r = c1.n_cols;
+  //int r = c1.n_cols;
   List re(2);
-  for(int i2=0;i2<d[2];i2++)
+  for(int i2=0;i2<d[2];i2++){
     for(int i1=0;i1<d[1];i1++){
       double temp1 = randn()*sigmab+b1(i1,i2);
       double log_p = R::dnorm(temp1,mub,sigmab,true)+log_pz_b1(i1,i2,temp1,d,c1,c2,c3,l1,l2,b2,z)-R::dnorm(b1(i1,i2),mub,sigmab,true)-log_pz_b1(i1,i2,b1(i1,i2),d,c1,c2,c3,l1,l2,b2,z);
@@ -393,8 +394,9 @@ List update_b(vec d,double mub,double sigmab,mat &b1,mat &b2,mat c1,mat c2,mat c
       if(u<p)
         b2(i1,i2)=temp2;
     }
-    re[0]=b1;re[1]=b2;
-    return re;
+  }
+  re[0]=b1;re[1]=b2;
+  return re;
 }
 
 
