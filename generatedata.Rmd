@@ -14,24 +14,7 @@ library(gtools)
 library(reshape2)
 library(ggplot2)
 ```
-## Data Generation
-```{r}
-#set.seed(2000)
-d <- c(20,20,20)
-y <- array(NA,dim = d)
-r <- 3
-m <- 0.1
-rho <- 0.3
-
-gamma <- c(rho/2,1-rho,rho/2)
-#mu <- rnorm(d[2]*d[3],mmu,sigmamu)
-#v1 <- rgamma(d[2]*d[3],av,bv)
-#v2 <- rgamma(d[2]*d[3],av,bv)
-#sigma2 <- rinvgamma(d[2]*d[3],as,bs)
-#sigma2 <- (sigma2<min(v1,v2)/k0)*sigma2
-mu <- 0
-sigma2 <- 1
-v <- 7
+```{R}
 #functino to generate IBP
 generateA = function(n, a, k) {
   flag = 0
@@ -60,6 +43,29 @@ generateA = function(n, a, k) {
   
   return(A)
 }
+
+
+```
+
+
+## Data Generation
+```{r}
+#set.seed(2000)
+d <- c(20,20,20)
+y <- array(NA,dim = d)
+r <- 3
+m <- 0.3
+rho <- 0.3
+
+gamma <- c(rho/2,1-rho,rho/2)
+#mu <- rnorm(d[2]*d[3],mmu,sigmamu)
+#v1 <- rgamma(d[2]*d[3],av,bv)
+#v2 <- rgamma(d[2]*d[3],av,bv)
+#sigma2 <- rinvgamma(d[2]*d[3],as,bs)
+#sigma2 <- (sigma2<min(v1,v2)/k0)*sigma2
+mu <- 0
+sigma2 <- 1
+v <- 7
 
 
 #generate c1,c2,c3,\lambda1,\lambda2
@@ -103,10 +109,13 @@ theta1 <- exp(theta1)
 theta2 <- exp(theta2)
 # generate latent ternary indicator z
 U0 = array(runif(d[1]*d[2]*d[3]),dim = d)
+
 z0 = (U0 > (theta1 + 1) / (theta1 + theta2 + 1)) - (U0 < theta1 / (theta1 + theta2 + 1))
-y[z0==1] <- rnorm(sum(z0==1),mu+10,5)
+#y[z0==1] <- rnorm(sum(z0==1),mu+10,5)
+y[z0==1] <- runif(sum(z0==1),mu,mu+5)
 y[z0==0] <- rnorm(sum(z0==0),mu,sigma2)
-y[z0==-1] <- rnorm(sum(z0==-1),mu-10,5)
+#y[z0==-1] <- rnorm(sum(z0==-1),mu-10,5)
+y[z0==-1] <- runif(sum(z0==-1),mu-5,mu)
 ```
 
 ```{r}
@@ -128,7 +137,7 @@ qq <- Multi_way_MCMC(y,1000)
   c3track <- list()
   ztrack <- list()
   #//initialization
-  al=1;bl=3;av=1;bv=1;am=1;bm=1;sigmal=1;mub=0;sigmab=0.1;arho=1;brho=1;psi_1=1/3;psi0=1/3;psi1=1/3;as=1;bs=1;sigmamu=1;
+  al=1;bl=3;av=1;bv=10;am=1;bm=1;sigmal=1;mub=0;sigmab=0.1;arho=1;brho=1;psi_1=1/3;psi0=1/3;psi1=1/3;as=1;bs=1;sigmamu=1;
  
   #//dimension
   d=dim(y);
@@ -159,7 +168,7 @@ qq <- Multi_way_MCMC(y,1000)
   #//paramters
   mu <- matrix(0,nrow = d[2],ncol = d[3])
   sigma2 <- matrix(1,nrow = d[2],ncol = d[3])
-  v1 <- 7*sigma2
+  v1 <- 5*sigma2
   v2 <- v1
   #b1 <- matrix(rnorm(d[2]*d[3]),nrow = d[2],ncol = d[3])
   b1 <- b1m
@@ -171,7 +180,7 @@ qq <- Multi_way_MCMC(y,1000)
   #mat sigma2(d[1],d[2],fill::ones);
   #mat b1(d[1],d[2],fill::randn);
   #mat b2(d[1],d[2],fill::randn);
-  m=0.1;rho=0.15;
+  m=0.3;rho=0.3;
   
   #vec gamma(3,fill::randu);
   gamma <- c(rho/2,1-rho,rho/2)
@@ -179,8 +188,10 @@ qq <- Multi_way_MCMC(y,1000)
   z <- array(0,dim = d)
 }
   #//MCMC update
-  for(it in 1:4000){
+  for(it in 1:5000){
     ztrack[[it]] <- z
+    
+    
     li4 <- update_zv(c1,c2,c3,lambda1,lambda2,d,z,b1,b2,v1,v2,av,bv,y,mu,sigma2);
     z <- li4[[1]]
     v1 <- li4[[2]]
@@ -189,9 +200,7 @@ qq <- Multi_way_MCMC(y,1000)
     c1 <- li1[[1]]
     c2 <- li1[[2]]
     c3 <- li1[[3]]
-    
     lambda1 <- li1[[4]]
-    
     lambda2 <- li1[[5]]
     r <- ncol(c1)
     
@@ -212,10 +221,10 @@ qq <- Multi_way_MCMC(y,1000)
     #li5 <- update_b(d,mub,sigmab,b1,b2,c1,c2,c3,lambda1,lambda2,z);
     #b1 <- li5[[1]]
     #b2 <- li5[[2]]
-    
+   
     #up6 = update_norm(z,y,sigmamu,mu,v1,v2);
-    #sigma2 <- up6[1:d[2],]
-    #mu <- up6[(d[2]+1):(2*d[2]),]
+    sigma2 <- update_norm1(z,y,mu,v1,v2)
+    mu <- update_norm2(z,y,sigmamu,sigma2)
     #result_multi[[it]] <- rbind(c1,c2,c3)
     c1track[[it]] <- c1
     c2track[[it]] <- c2
@@ -238,6 +247,7 @@ mean((theta1-t1p)^2)
 ```
 
 ```{r}
+
 kclass <- vector()
 for(i in 1:length(c1track)){
   kclass[i] <- ncol(c1track[[i]])
@@ -267,7 +277,12 @@ for(i in (length(c1track)/2):length(c1track)){
 plot(kclass)
 table(kclass)
 ```
+```{r}
+c1 <- c1track[[2528]]
+c2 <- c2track[[2528]]
+c3 <- c3track[[2528]]
 
+```
 ```{r}
 c1com <- cbind(c1,c1o)
 c2com <- cbind(c2,c2o)
@@ -275,15 +290,17 @@ c3com <- cbind(c3,c3o)
 ```
 
 ```{r}
+kl <- 3
 #kclass <- vector()
-c3left <- c3track[kclass==2]
-c3p <- vector()
-for(i in 1:length(c3left)){
+c3left <- c3track[kclass==kl]
+c3p <- matrix(0,nrow = d[3]*kl,ncol = sum(kclass==kl))
+for(t in 1:length(c3left)){
  # kclass[i] <- ncol(c1track[[i]])
-  c3p[i] <- c3left[[i]][6,1]
+  c3p[,t] <- as.vector(c3left[[t]])
 }
+c3 <- apply(c3p, 1, function(x){as.numeric(names(table(x))[table(x) == max(table(x))])})
 #plot(kclass)
-plot(c3p)
+c3 <- matrix(c3,nrow = d[3],ncol = kl)
 ```
 
 

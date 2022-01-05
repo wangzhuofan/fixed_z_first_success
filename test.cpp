@@ -17,29 +17,6 @@ double har(int n){
   return result;
 }
 
-//function to generate dirichlet random variable;
-//[[Rcpp::export]]
-mat rdirichlet_cpp(int num_samples,vec alpha_m) {
-  int distribution_size = alpha_m.n_elem;
-  // each row will be a draw from a Dirichlet
-  arma::mat distribution = arma::zeros(num_samples, distribution_size);
-  
-  for (int i = 0; i < num_samples; ++i) {
-    double sum_term = 0;
-    // loop through the distribution and draw Gamma variables
-    for (int j = 0; j < distribution_size; ++j) {
-      double cur = randg(distr_param(alpha_m[j],1.0));
-      distribution(i,j) = cur;
-      sum_term += cur;
-    }
-    // now normalize
-    for (int j = 0; j < distribution_size; ++j) {
-      distribution(i,j) = distribution(i,j)/sum_term;
-    }
-  }
-  return(distribution);
-}
-
 //functions to compute Khatri-Rao product;
 //[[Rcpp::export]]
 mat KR(mat A,mat B){
@@ -69,14 +46,12 @@ double log_pz3(vec a1,vec a2,mat b,vec c,vec d1,vec d2){
   return result;
 }
 
-
 //functions to calculate px;
-
-//double log_px(double x,double z,double v1,double v2,double mu,double sigma2){
-  //double result=-log(v1)*(z==-1)*(x<mu)+R::dnorm(x,mu,sigma2,true)*(z==0)-log(v2)*(z==1)*(x>mu);
-  //return result;
-//}
-
+//[[Rcpp::export]]
+double log_px(double x,double v1,double v2,double mu,double sigma2,double p_1,double p0,double p1){
+  double result=log((1/v1)*p_1*((x<mu)&&(x>mu-v1))+R::dnorm(x,mu,sigma2,false)*p0+log(1/v2)*((x>mu)&&(x<mu+v2))*p1);
+  return result;
+}
 
 //functions to calculate pz_unit;
 //[[Rcpp::export]]
@@ -156,7 +131,7 @@ List update_c1(mat c1,mat c2,mat c3,mat lambda1,mat lambda2,vec d,cube z,mat b1,
         c1(i,j) = (randu()>p0);a(j) = c1(i,j);
       }
     }
-    if((sum(index) != 0) & (sum(index) != r)) {
+    if((sum(index) != 0) && (sum(index) != r)) {
       c1 = c1.cols(find(index));  c2 = c2.cols(find(index)); c3 = c3.cols(find(index)); lambda1 = lambda1.cols(find(index));lambda2 = lambda2.cols(find(index));
       a = a(find(index));  m1 = m1.cols(find(index));  m2 = m2.cols(find(index));
     }
@@ -279,57 +254,22 @@ List update_c3(mat c1,mat c2,mat c3,mat lambda1,mat lambda2,vec d,cube z,mat b1,
   return re;
 }
 
-//function to update class r and new feature
-
-//List new_feature(mat c1,mat c2,mat c3,mat lambda1,mat lambda2,vec d,cube z,mat b1,mat b2,vec gamma,double m,double rho,double al,double bl)
-//{
-  //int r = c1.n_cols;
-  //List re(5);
-  //int r_star = R::rpois(m/d[0]);
-  //if(r_star >0){
-    //propose new feature
-    
-    //mat c1t(d[0],r_star,fill::ones),c2t(d[1],r_star,fill::randu),c3t(d[2],r_star,fill::randu),lambda1t=randg<mat>(d[2],r_star, distr_param(al,bl)),lambda2t=randg<mat>(d[2],r_star, distr_param(al,bl));
-    //c2t = ones(size(c2t))%(c2t<rho);c3t = ones(size(c3t))%(c3t>(1-gamma[2]))-ones(size(c3t))%(c3t<gamma[0]);
-    //mat c1_new=join_rows(c1,c1t),c2_new=join_rows(c2,c2t),c3_new=join_rows(c3,c3t),l1_new=join_rows(lambda1,lambda1t),l2_new=join_rows(lambda2,lambda2t);
-    //mat m1_old = KR(lambda1%(c3==-1),c2),m2_old = KR(lambda2%(c3==1),c2),m1_new = KR(l1_new%(c3_new==-1),c2_new),m2_new = KR(l2_new%(c3_new==1),c2_new);
-    
-    //double flag =0;
-    //for(int i=0;i<d[0];i++){
-      //vec a_old = vectorise(c1.row(i));
-      //vec a_new = vectorise(c1_new.row(i));
-      //vec zvec = vectorise(z.row(i));
-      //double log_p = log_pz(a_new,m1_new,m2_new,zvec,vectorise(b1),vectorise(b2))-log_pz(a_old,m1_old,m2_old,zvec,vectorise(b1),vectorise(b2));
-      //double p = exp(log_p);
-      //double u = randu();
-      //if(u>p){
-        //flag +=1;
-        //c1_new.submat(i,r,i,r_star+r-1) = zeros<mat>(1,r_star);
-      //}
-    //}
-    //if(flag<d[0]){
-      //c1 = c1_new;c2 = c2_new;c3 = c3_new;lambda1 = l1_new;lambda2 = l2_new;
-    //}
-  //}
-  //re[0]=c1;re[1]=c2;re[2]=c3;re[3]=lambda1;re[4]=lambda2;
-  //return re;
-//}
 
 //function to update z and v
 //[[Rcpp::export]]
 List update_zv(mat c1,mat c2,mat c3,mat lambda1,mat lambda2,vec d,cube z,mat b1,mat b2,mat v1,mat v2,double av,double bv,cube y,mat mu,mat sigma2)
 {
   //int r = c1.n_cols;
-  //double k0=5;
+  double k0=5;
   List re(3);
   for(int i2=0;i2<d[2];i2++){
     for(int i1=0;i1<d[1];i1++){
-      //vec ztemp(d[0]);
-      //double temp1 = randg( distr_param(av,bv) );
-      //double temp2 = randg( distr_param(av,bv) );
-      //if(temp1 < sqrt(sigma2(i1,i2))*k0) temp1=sqrt(sigma2(i1,i2))*k0;
-      //if(temp2 < sqrt(sigma2(i1,i2))*k0) temp2=sqrt(sigma2(i1,i2))*k0;
-      //double log_p=0;
+      vec ztemp(d[0],fill::zeros);
+      double temp1 = randg( distr_param(av,bv) );
+      double temp2 = randg( distr_param(av,bv) );
+      if(temp1 < sqrt(sigma2(i1,i2))*k0) temp1=sqrt(sigma2(i1,i2))*k0;
+      if(temp2 < sqrt(sigma2(i1,i2))*k0) temp2=sqrt(sigma2(i1,i2))*k0;
+      double log_p=0;
       for(int i0=0;i0<d[0];i0++){
         //double log_p_1 = log_pz_unit(i0,i1,i2,-1,c1,c2,c3,lambda1,lambda2,b1,b2)+log_px(y(i0,i1,i2),-1,v1(i1,i2),v2(i1,i2),mu(i1,i2),sigma2(i1,i2));
         //double log_p0 = log_pz_unit(i0,i1,i2,0,c1,c2,c3,lambda1,lambda2,b1,b2)+log_px(y(i0,i1,i2),0,v1(i1,i2),v2(i1,i2),mu(i1,i2),sigma2(i1,i2));
@@ -337,18 +277,21 @@ List update_zv(mat c1,mat c2,mat c3,mat lambda1,mat lambda2,vec d,cube z,mat b1,
         //double p_1 = exp(log_p_1), p0 = exp(log_p0),p1 = exp(log_p1);
         //double u = randu();
         //ztemp(i0) = (u>(1-p1/(p_1+p0+p1)))-(u<(p_1/(p_1+p0+p1)));
-        double log_p0 = log_pz_unit(i0,i1,i2,0,c1,c2,c3,lambda1,lambda2,b1,b2)+R::dnorm(y(i0,i1,i2),mu(i1,i2),sigma2(i1,i2),true);
-        double log_p1 = log_pz_unit(i0,i1,i2,1,c1,c2,c3,lambda1,lambda2,b1,b2)-log(v2(i1,i2));
-        double log_p_1 = log_pz_unit(i0,i1,i2,-1,c1,c2,c3,lambda1,lambda2,b1,b2)-log(v1(i1,i2));
-        if(y(i0,i1,i2)>=mu(i1,i2))  z(i0,i1,i2) = ((log_p1 - log_p0) > log(1 / randu() - 1));
-        if(y(i0,i1,i2)<mu(i1,i2))  z(i0,i1,i2) = -((log_p_1 - log_p0) > log(1 / randu() - 1));
-        //log_p += log_px(y(i0,i1,i2),ztemp(i0),temp1,temp2,mu(i1,i2),sigma2(i1,i2))-log_px(y(i0,i1,i2),z(i0,i1,i2),v1(i1,i2),v2(i1,i2),mu(i1,i2),sigma2(i1,i2));
+        double t0 = log_pz_unit(i0,i1,i2,0,c1,c2,c3,lambda1,lambda2,b1,b2);
+        double t_1 = log_pz_unit(i0,i1,i2,-1,c1,c2,c3,lambda1,lambda2,b1,b2);
+        double t1 = log_pz_unit(i0,i1,i2,1,c1,c2,c3,lambda1,lambda2,b1,b2);
+        double log_p0 = t0+R::dnorm(y(i0,i1,i2),mu(i1,i2),sqrt(sigma2(i1,i2)),true);
+        double log_p1 = t1-log(temp2);
+        double log_p_1 = t_1-log(temp1);
+        if((y(i0,i1,i2)>=mu(i1,i2))  && (y(i0,i1,i2) < (mu(i1,i2) + temp2)))  ztemp(i0) = ((log_p1 - log_p0) > log(1 / randu() - 1));
+        if((y(i0,i1,i2)<mu(i1,i2)) && (y(i0,i1,i2) > (mu(i1,i2) - temp1)))  ztemp(i0) = -((log_p_1 - log_p0) > log(1 / randu() - 1));
+        log_p += log_px(y(i0,i1,i2),temp1,temp2,mu(i1,i2),sigma2(i1,i2),exp(t_1),exp(t0),exp(t1))-log_px(y(i0,i1,i2),v1(i1,i2),v2(i1,i2),mu(i1,i2),sigma2(i1,i2),exp(t_1),exp(t0),exp(t1));
       }
       //z.subcube(0,i1,i2,d[0]-1,i1,i2) = ztemp;
-      //double p = exp(log_p),u = randu();
-      //if(u<p){
-        //v1(i1,i2) = temp1;v2(i1,i2) = temp2;z.subcube(0,i1,i2,d[0]-1,i1,i2) = ztemp;
-      //}
+      double p = exp(log_p),u = randu();
+      if(u<p){
+        v1(i1,i2) = temp1;v2(i1,i2) = temp2;z.subcube(0,i1,i2,d[0]-1,i1,i2) = ztemp;
+      }
     }
   }
   re[0]=z;re[1]=v1;re[2]=v2;
@@ -357,20 +300,33 @@ List update_zv(mat c1,mat c2,mat c3,mat lambda1,mat lambda2,vec d,cube z,mat b1,
 
 //function to update mu and sigma2
 //[[Rcpp::export]]
-mat update_norm(cube z,cube y,double as,double bs,double sigmamu,mat mu,double k0,mat v1,mat v2)
+mat update_norm1(cube z,cube y,mat mu,mat v1,mat v2)
 {
-  as=1e-3;bs=1e-3;k0=5;
-  int nrow = mu.n_rows,ncol = mu.n_cols,fir = z.n_rows;mat result(2*nrow,ncol);
-  for(int i =0;i<nrow;i++)
+  double as=1e-3,bs=1e-3,k0=5;
+  int nrow = mu.n_rows,ncol = mu.n_cols,fir = z.n_rows;mat result(nrow,ncol);
+  for(int i =0;i<nrow;i++){
     for(int j =0;j<ncol;j++){
       vec uk={v1(i,j) / k0,  v2(i,j) / k0};
       vec zt = vectorise(z.subcube(0,i,j,fir-1,i,j)),con = ones(fir),yt = vectorise(y.subcube(0,i,j,fir-1,i,j));
       result(i,j) = 1 / randg(distr_param(as+0.5*sum(con%(zt==0)), 1 / (bs+0.5*sum((zt==0)%pow(yt-mu(i,j),2)))));
       if(result(i,j) > pow(min(uk), 2)) result(i,j) = pow(min(uk), 2);
-      double st = 1/(1/sigmamu+sum(con%(zt==0))/result(i,j));
-      result(nrow+i,j) = sqrt(st)*randn()+st*sum((zt==0)%yt)/result(i,j);
     }
-   return result;   
+  }
+  return result;   
+}
+
+//[[Rcpp::export]]
+mat update_norm2(cube z,cube y,double sigmamu2,mat sigma2)
+{
+  int nrow = sigma2.n_rows,ncol = sigma2.n_cols,fir = z.n_rows;mat result(nrow,ncol);
+  for(int i =0;i<nrow;i++){
+    for(int j =0;j<ncol;j++){
+      vec zt = vectorise(z.subcube(0,i,j,fir-1,i,j)),con = ones(fir),yt = vectorise(y.subcube(0,i,j,fir-1,i,j));
+      double st = 1/(1/sigmamu2+sum(con%(zt==0))/sigma2(i,j));
+      result(i,j) = sqrt(st)*randn()+st*sum((zt==0)%yt)/sigma2(i,j);
+    }
+  }
+  return result;   
 }
 //function to update b1 and b2
 //[[Rcpp::export]]
@@ -380,14 +336,14 @@ List update_b(vec d,double mub,double sigmab,mat &b1,mat &b2,mat c1,mat c2,mat c
   List re(2);
   for(int i2=0;i2<d[2];i2++){
     for(int i1=0;i1<d[1];i1++){
-      double temp1 = randn()*sigmab+b1(i1,i2);
+      double temp1 = randn()+b1(i1,i2);
       double log_p = R::dnorm(temp1,mub,sigmab,true)+log_pz_b1(i1,i2,temp1,d,c1,c2,c3,l1,l2,b2,z)-R::dnorm(b1(i1,i2),mub,sigmab,true)-log_pz_b1(i1,i2,b1(i1,i2),d,c1,c2,c3,l1,l2,b2,z);
       double p = exp(log_p);
       double u = randu();
       if(u<p)
         b1(i1,i2)=temp1;
       
-      double temp2 = randn()*sigmab+b2(i1,i2);
+      double temp2 = randn()+b2(i1,i2);
       log_p = R::dnorm(temp2,mub,sigmab,true)+log_pz_b2(i1,i2,temp2,d,c1,c2,c3,l1,l2,b1,z)-R::dnorm(b2(i1,i2),mub,sigmab,true)-log_pz_b1(i1,i2,b2(i1,i2),d,c1,c2,c3,l1,l2,b1,z);
       p = exp(log_p);
       u = randu();
@@ -398,62 +354,3 @@ List update_b(vec d,double mub,double sigmab,mat &b1,mat &b2,mat c1,mat c2,mat c
   re[0]=b1;re[1]=b2;
   return re;
 }
-
-
-//List Multi_way_MCMC(cube y,int iters){
-  //List matrix_gibbs(iters);
-  //initialization
-  //fixed parameters
-  //double as=1,bs=1,sigmamu=1,al=1,bl=1,av=1,bv=1,am=1, bm=1,sigmal=0.1,mub=0,sigmab=0.1,arho=1,brho=1,psi_1=1/3,psi0=1/3,psi1=1/3;
-  //dimension
-  //vec d(3);
-  //d[0] = y.n_rows;
-  //d[1] = y.n_cols;
-  //d[2] = y.n_slices;
-  //class number
-  //int r=1;
-  //observation and latent
-  //cube z=randi<cube>(d[0],d[1],d[2],distr_param(-1,1));
-  //class
-  //mat c1 = randi<mat>(d[0], r, distr_param(0,1));
-  //mat c2 = randi<mat>(d[1], r, distr_param(0,1));
-  //mat c3 = randi<mat>(d[2], r, distr_param(-1,1));
-  //mat lambda1(d[2],r,fill::randn);
-  //mat lambda2(d[2],r,fill::randn);
-  
-  //paramters
-  //mat mu(d[1],d[2],fill::zeros);
-  //mat v1(d[1],d[2],fill::randu);
-  //mat v2(d[1],d[2],fill::randu);
-  //mat sigma2(d[1],d[2],fill::ones);
-  //mat b1(d[1],d[2],fill::randn);
-  //mat b2(d[1],d[2],fill::randn);
-  //double m=1,rho=0.2;
-  //vec gamma={0.1,0.8,0.1};
-  //MCMC update
-  //for(int it=0;it<iters;it++){
-    //update $c_1$ and delete  zero-column and related feature
-    //List up = update_c1(c1,c2,c3,lambda1,lambda2,d,z,b1,b2);
-    //update $c_2$
-    //mat c1 = up[0],c2=up[1],c3=up[2],lambda1 = up[3],lambda2 = up[4];r = c1.n_cols;
-    //c2 = update_c2(c1,c2,c3,lambda1,lambda2,d,z,b1,b2,rho);
-    //List up2 = update_c3(c1,c2,c3,lambda1,lambda2,d,z,b1,b2,gamma,sigmal,al,bl);
-    //mat t0=up2[0],t1=up2[1],t2=up2[2];
-    //c3 = t0;lambda1 = t1;lambda2 = t2;
-    //List up3 = new_feature(c1,c2,c3,lambda1,lambda2,d,z,b1,b2,gamma, m,rho,al,bl);
-    //mat w0 = up3[0],w1=up3[1],w2=up3[2],w3 =up3[3],w4=up3[4];
-    //c1=w0;c2=w1;c3=w2;lambda1=w3;lambda2=w4;r=c1.n_cols;
-    //List up4 =update_zv(c1,c2,c3,lambda1,lambda2,d,z,b1,b2,v1,v2,av,bv,y,mu,sigma2);
-    //cube q1=up4[0];mat q2 = up4[1],q3 = up4[2];
-    //z = q1;v1 = q2;v2= q3;
-    //m = randg( distr_param(am+r,bm+har(d[0])));
-    //rho = R::rbeta(arho+count(c2.begin(),c2.end(),1),brho+count(c2.begin(),c2.end(),0));
-    //List up5 = update_b(d,mub,sigmab,b1,b2,c1,c2,c3,lambda1,lambda2,z);
-    //mat s1=up5[0],s2=up5[1];
-    //b1 = s1;b2=s2;
-    //mat up6 = update_norm(z,y,as,bs,sigmamu,mu,5,v1,v2);
-    //mu = up6.rows(0,d[1]-1);sigma2 = up6.rows(d[1],2*d[1]-1);
-    //matrix_gibbs[it] = join_cols(c1,c2,c3);
-  //}
-  //return matrix_gibbs;
-//}
