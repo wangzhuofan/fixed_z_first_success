@@ -49,7 +49,7 @@ double log_pz3(vec a1,vec a2,mat b,vec c,vec d1,vec d2){
 //functions to calculate px;
 //[[Rcpp::export]]
 double log_px(double x,double v1,double v2,double mu,double sigma2,double p_1,double p0,double p1){
-  double result=log((1/v1)*p_1*((x<mu)&&(x>mu-v1))+R::dnorm(x,mu,sigma2,false)*p0+log(1/v2)*((x>mu)&&(x<mu+v2))*p1);
+  double result=log((1/v1)*p_1*((x<mu)&&(x>mu-v1))+R::dnorm(x,mu,sigma2,false)*p0+(1/v2)*((x>mu)&&(x<mu+v2))*p1);
   return result;
 }
 
@@ -330,7 +330,7 @@ mat update_norm2(cube z,cube y,double sigmamu2,mat sigma2)
 }
 //function to update b1 and b2
 //[[Rcpp::export]]
-List update_b(vec d,double mub,double sigmab,mat &b1,mat &b2,mat c1,mat c2,mat c3,mat l1,mat l2,cube z)
+List update_b(vec d,double mub,double sigmab,mat b1,mat b2,mat c1,mat c2,mat c3,mat l1,mat l2,cube z)
 {
   //int r = c1.n_cols;
   List re(2);
@@ -344,7 +344,7 @@ List update_b(vec d,double mub,double sigmab,mat &b1,mat &b2,mat c1,mat c2,mat c
         b1(i1,i2)=temp1;
       
       double temp2 = randn()+b2(i1,i2);
-      log_p = R::dnorm(temp2,mub,sigmab,true)+log_pz_b2(i1,i2,temp2,d,c1,c2,c3,l1,l2,b1,z)-R::dnorm(b2(i1,i2),mub,sigmab,true)-log_pz_b1(i1,i2,b2(i1,i2),d,c1,c2,c3,l1,l2,b1,z);
+      log_p = R::dnorm(temp2,mub,sigmab,true)+log_pz_b2(i1,i2,temp2,d,c1,c2,c3,l1,l2,b1,z)-R::dnorm(b2(i1,i2),mub,sigmab,true)-log_pz_b2(i1,i2,b2(i1,i2),d,c1,c2,c3,l1,l2,b1,z);
       p = exp(log_p);
       u = randu();
       if(u<p)

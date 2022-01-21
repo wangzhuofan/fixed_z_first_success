@@ -54,7 +54,7 @@ generateA = function(n, a, k) {
 d <- c(20,20,20)
 y <- array(NA,dim = d)
 r <- 3
-m <- 0.3
+m <- 0.1
 rho <- 0.3
 
 gamma <- c(rho/2,1-rho,rho/2)
@@ -92,7 +92,7 @@ lambda2 <- lambda1
 b1 <- log(0.1)
 #b2 <- rnorm(d[2]*d[3])
 b2 <- b1
-b1m <- matrix(b1,nrow = d[2],ncol = d[3])
+b1m <- matrix(-b1,nrow = d[2],ncol = d[3])
 b2m <- b1m
 
 #generate z & y
@@ -113,7 +113,9 @@ U0 = array(runif(d[1]*d[2]*d[3]),dim = d)
 z0 = (U0 > (theta1 + 1) / (theta1 + theta2 + 1)) - (U0 < theta1 / (theta1 + theta2 + 1))
 #y[z0==1] <- rnorm(sum(z0==1),mu+10,5)
 y[z0==1] <- runif(sum(z0==1),mu,mu+5)
+
 y[z0==0] <- rnorm(sum(z0==0),mu,sigma2)
+
 #y[z0==-1] <- rnorm(sum(z0==-1),mu-10,5)
 y[z0==-1] <- runif(sum(z0==-1),mu-5,mu)
 ```
@@ -131,13 +133,16 @@ qq <- Multi_way_MCMC(y,1000)
 
 ```{r}
 
+
 {
   c1track <- list()
   c2track <- list()
   c3track <- list()
   ztrack <- list()
+  b1track <- list()
+  b2track <- list()
   #//initialization
-  al=1;bl=3;av=1;bv=10;am=1;bm=1;sigmal=1;mub=0;sigmab=0.1;arho=1;brho=1;psi_1=1/3;psi0=1/3;psi1=1/3;as=1;bs=1;sigmamu=1;
+  al=1;bl=3;av=1;bv=10;am=1;bm=1;sigmal=1;mub=0;sigmab=3;arho=1;brho=1;psi_1=1/3;psi0=1/3;psi1=1/3;as=1;bs=1;sigmamu=1;
  
   #//dimension
   d=dim(y);
@@ -189,7 +194,7 @@ qq <- Multi_way_MCMC(y,1000)
 }
   #//MCMC update
   for(it in 1:5000){
-    ztrack[[it]] <- z
+    #ztrack[[it]] <- z
     
     
     li4 <- update_zv(c1,c2,c3,lambda1,lambda2,d,z,b1,b2,v1,v2,av,bv,y,mu,sigma2);
@@ -223,12 +228,14 @@ qq <- Multi_way_MCMC(y,1000)
     #b2 <- li5[[2]]
    
     #up6 = update_norm(z,y,sigmamu,mu,v1,v2);
-    sigma2 <- update_norm1(z,y,mu,v1,v2)
-    mu <- update_norm2(z,y,sigmamu,sigma2)
+    #sigma2 <- update_norm1(z,y,mu,v1,v2)
+    #mu <- update_norm2(z,y,sigmamu,sigma2)
     #result_multi[[it]] <- rbind(c1,c2,c3)
     c1track[[it]] <- c1
     c2track[[it]] <- c2
     c3track[[it]] <- c3
+    #b1track[[it]] <- b1
+    #b2track[[it]] <- b2
   }
   return matrix_gibbs;
 }
@@ -278,11 +285,12 @@ plot(kclass)
 table(kclass)
 ```
 ```{r}
-c1 <- c1track[[2528]]
-c2 <- c2track[[2528]]
-c3 <- c3track[[2528]]
+c1 <- c1track[[3500]]
+c2 <- c2track[[3500]]
+c3 <- c3track[[3500]]
 
 ```
+
 ```{r}
 c1com <- cbind(c1,c1o)
 c2com <- cbind(c2,c2o)
